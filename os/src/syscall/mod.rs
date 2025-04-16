@@ -28,24 +28,31 @@ mod trace;
 use fs::*;
 use process::*;
 // 避免名称冲突，使用显式导入
-use trace::{try_increment_syscall_count, sys_trace as trace_sys_trace};
+use trace::{sys_trace, try_increment_syscall_count};
 
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
-    // 特殊处理trace系统调用，避免递归计数
-    if syscall_id != SYSCALL_TRACE {
-        // 如果不是trace系统调用本身，则更新trace计数
-        if let Some(_) = try_increment_syscall_count(syscall_id) {
-            // 计数更新成功
-        }
-    }
-    
     match syscall_id {
-        SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
-        SYSCALL_EXIT => sys_exit(args[0] as i32),
-        SYSCALL_YIELD => sys_yield(),
-        SYSCALL_GET_TIME => sys_get_time(args[0] as *mut TimeVal, args[1]),
-        SYSCALL_TRACE => trace_sys_trace(args[0], args[1], args[2]),
+        SYSCALL_WRITE => {
+            try_increment_syscall_count(SYSCALL_WRITE);
+            sys_write(args[0], args[1] as *const u8, args[2])
+        }
+        SYSCALL_EXIT => {
+            try_increment_syscall_count(SYSCALL_EXIT);
+            sys_exit(args[0] as i32)
+        }
+        SYSCALL_YIELD => {
+            try_increment_syscall_count(SYSCALL_YIELD);
+            sys_yield()
+        }
+        SYSCALL_GET_TIME => {
+            try_increment_syscall_count(SYSCALL_GET_TIME);
+            sys_get_time(args[0] as *mut TimeVal, args[1])
+        }
+        SYSCALL_TRACE => {
+            try_increment_syscall_count(SYSCALL_TRACE);
+            sys_trace(args[0], args[1], args[2])
+        }
         _ => panic!("Unsupported syscall_id: {}", syscall_id),
     }
 }
